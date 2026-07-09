@@ -1392,7 +1392,7 @@ function dismissRec(uid){persist(function(d){d.recovery=(d.recovery||[]).filter(
   // credenciales ya configuradas en el código
   screen='auth';
   apiLoad().then(function(data){
-    if(!data){render();toast('Error de conexión','err');return;}
+    if(!data){D=normalizeData({});screen='auth';render();return;}
     D=normalizeData(data);render();
     syncT=setInterval(function(){
       if(document.hidden)return;
