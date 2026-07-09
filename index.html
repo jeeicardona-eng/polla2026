@@ -435,56 +435,35 @@ function calcPts(pred,sc,kw,cfg,oq){
 }
 
 // ══ STORAGE (JSONBin) ══
-var API='https://api.jsonbin.io/v3';
-var _binId='6a18a2c4ddf5aa59f7717771',_key='$2a$10$F2T.UkGq03EhRAdjzGupJ.Z7lMfh2VRwGo3wBtLQr5JgHYzfDeaTK';
-function getCreds(){if(_binId&&_key)return{binId:_binId,key:_key};_binId=localStorage.getItem('pm26_bid');_key=localStorage.getItem('pm26_key');return{binId:_binId,key:_key};}
-function setCreds(b,k){_binId=b;_key=k;localStorage.setItem('pm26_bid',b);localStorage.setItem('pm26_key',k);}
-function clearCreds(){_binId=null;_key=null;localStorage.removeItem('pm26_bid');localStorage.removeItem('pm26_key');}
+var SUPA_URL='https://swwldztguzzhyywludxe.supabase.co';
+var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3d2xkenRndXp6aHl5d2x1ZHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NTY2MDAsImV4cCI6MjA5OTEzMjYwMH0.wmWzOJDK2WbTMBEMva8ILWoJi8QPRzSC2L8jMRINlz4';
+var SUPA_ROW='polla2026';
+function getCreds(){return{binId:'configured',key:'configured'};}
+function setCreds(b,k){}
+function clearCreds(){}
 async function apiLoad(){
-  var c=getCreds();if(!c.binId||!c.key)return null;
-  try{var r=await fetch(API+'/b/'+c.binId+'/latest',{headers:{'X-Master-Key':c.key,'X-Bin-Meta':'false'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}
+  try{
+    var r=await fetch(SUPA_URL+'/rest/v1/polla?id=eq.'+SUPA_ROW,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+    });
+    if(!r.ok)return null;
+    var rows=await r.json();
+    if(!rows||!rows.length)return null;
+    return rows[0].data;
+  }catch(e){return null;}
 }
 async function apiSave(data){
-  var c=getCreds();if(!c.binId||!c.key)return false;
-  try{var r=await fetch(API+'/b/'+c.binId,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':c.key},body:JSON.stringify(data)});return r.ok;}catch(e){return false;}
+  try{
+    var r=await fetch(SUPA_URL+'/rest/v1/polla',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({id:SUPA_ROW,data:data})
+    });
+    return r.ok;
+  }catch(e){return false;}
 }
-async function apiCreate(key,data){
-  try{var r=await fetch(API+'/b',{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'PollaMundial2026'},body:JSON.stringify(data)});if(!r.ok)return null;var res=await r.json();return res.metadata&&res.metadata.id?res.metadata.id:null;}catch(e){return null;}
-}
-function emptyData(){return {config:JSON.parse(JSON.stringify(DEF_CFG)),users:[],predictions:{},official:{scores:{},kw:{}},recovery:[]};}
-function normalizeData(d){
-  if(!d)return emptyData();
-  d.config=Object.assign({},DEF_CFG,d.config||{});
-  if(d.config.bote===undefined)d.config.bote=0;
-  d.users=d.users||[];d.predictions=d.predictions||{};
-  d.official=d.official||{};d.official.scores=d.official.scores||{};d.official.kw=d.official.kw||{};
-  d.recovery=d.recovery||[];
-  // ── Migración: normalizar todas las keys de scores a STRING ──
-  // Los datos guardados con el archivo viejo pueden tener keys numéricas
-  function fixScoreKeys(scores){
-    if(!scores)return {};
-    var fixed={};
-    Object.keys(scores).forEach(function(k){fixed[String(k)]=scores[k];});
-    return fixed;
-  }
-  function fixKwKeys(kw){
-    if(!kw)return {};
-    var fixed={};
-    Object.keys(kw).forEach(function(k){fixed[String(k)]=kw[k];});
-    return fixed;
-  }
-  d.official.scores=fixScoreKeys(d.official.scores);
-  d.official.kw=fixKwKeys(d.official.kw);
-  Object.keys(d.predictions).forEach(function(uid){
-    if(d.predictions[uid]){
-      d.predictions[uid].scores=fixScoreKeys(d.predictions[uid].scores||{});
-      d.predictions[uid].koWinners=fixKwKeys(d.predictions[uid].koWinners||{});
-    }
-  });
-  return d;
-}
-var D=null,me=null,screen='auth',authSub='login',appTab='pronos',pSubTab='grupos',adminSub='resultados',adminKoSub='r32',saving=false,syncT=null;
-var livePred=null; // estado en vivo, actualiza sin guardar
+
+async function apiCreate(key,data){return true;} // Supabase: no necesario
 async function persist(fn){
   if(saving)return;saving=true;render();
   var fresh=await apiLoad();
