@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Polla Mundial 2026</title>
 <style>
 
@@ -438,28 +439,28 @@ function calcPts(pred,sc,kw,cfg,oq){
 var SUPA_URL='https://swwldztguzzhyywludxe.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3d2xkenRndXp6aHl5d2x1ZHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NTY2MDAsImV4cCI6MjA5OTEzMjYwMH0.wmWzOJDK2WbTMBEMva8ILWoJi8QPRzSC2L8jMRINlz4';
 var SUPA_ROW='polla2026';
+var _supaClient=null;
+function getSupaClient(){
+  if(_supaClient)return _supaClient;
+  _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+  return _supaClient;
+}
 function getCreds(){return{binId:'configured',key:'configured'};}
 function setCreds(b,k){}
 function clearCreds(){}
 async function apiLoad(){
   try{
-    var r=await fetch(SUPA_URL+'/rest/v1/polla?id=eq.'+SUPA_ROW,{
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
-    });
-    if(!r.ok)return null;
-    var rows=await r.json();
-    if(!rows||!rows.length)return null;
-    return rows[0].data;
+    var db=getSupaClient();
+    var r=await db.from('polla').select('data').eq('id',SUPA_ROW).single();
+    if(r.error)return null;
+    return r.data?r.data.data:null;
   }catch(e){return null;}
 }
 async function apiSave(data){
   try{
-    var r=await fetch(SUPA_URL+'/rest/v1/polla',{
-      method:'POST',
-      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-      body:JSON.stringify({id:SUPA_ROW,data:data})
-    });
-    return r.ok;
+    var db=getSupaClient();
+    var r=await db.from('polla').upsert({id:SUPA_ROW,data:data});
+    return !r.error;
   }catch(e){return false;}
 }
 
