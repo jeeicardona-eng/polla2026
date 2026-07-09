@@ -108,7 +108,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f4f6f8;color:#222;m
 <body>
 <div id="root"><div style="padding:60px;text-align:center;color:#999;font-size:16px">Cargando Polla Mundial 2026…</div></div>
 <script>
-var _binId='6a18a2c4ddf5aa59f7717771',_key='$2a$10$F2T.UkGq03EhRAdjzGupJ.Z7lMfh2VRwGo3wBtLQr5JgHYzfDeaTK';
+var _binId='6a4f159ada38895dfe43c37d',_key='$2a$10$uSNM9Lkmt4M.BApTcIgxdOuMnTIFXJInEL.17EFFIu5.Dc97Lsl9u';
 
 'use strict';
 // ══ DATOS ══
@@ -171,7 +171,6 @@ var R32=[
 {n:87,d:"3 jul", h:"Colombia",           a:"Ghana",                hl:"1.º Grupo K — Colombia",         al:"Mejor 3.º — Ghana"},
 {n:88,d:"3 jul", h:"Australia",          a:"Egipto",               hl:"2.º Grupo D — Australia",        al:"2.º Grupo G — Egipto"}
 ];
-// Mapa directo de equipos reales para 16avos (evita depender de gp/std)
 var R32_TEAMS=(function(){var m={};R32.forEach(function(r){if(r.h&&r.a&&!/^[12]\.º/.test(r.h)&&!/^[12]\.º/.test(r.a)&&r.a.indexOf('3.')!==0){m[r.n]={h:r.h,a:r.a};}});return m;})();
 
 var OCT=[
@@ -339,7 +338,6 @@ function resolveBracket(std,thirds,kw){
   var tm=assignThirds(thirds),res={};
   var gp=function(l){var m=l.match(/^([12])\.º ([A-L])$/);return m?(std[m[2]]&&std[m[2]][parseInt(m[1])-1]?std[m[2]][parseInt(m[1])-1].t:null):null;};
   R32.forEach(function(m){
-    // Si ya tiene nombre real (no formato "X.º G"), usarlo directamente
     var rh=/^[12]\.º [A-L]$/.test(m.h)?gp(m.h):m.h;
     var ra=m.a.indexOf('3.')===0?(tm[m.n]||null):(/^[12]\.º [A-L]$/.test(m.a)?gp(m.a):m.a);
     res[m.n]={h:rh||null,a:ra||null};
@@ -388,40 +386,33 @@ function calcPts(pred,sc,kw,cfg,oq){
     if(ph===oh&&pa===oa){scPts+=cfg.result+cfg.exact;return;}  // 2+3=5 máximo
     if(out(ph-pa)===out(oh-oa))scPts+=cfg.result;              // solo 2
   });
-  // KO matches 73-104
-  // Para R32: usar R32_TEAMS (equipos reales directos, sin depender de std/gp)
-  // Para OCT+: usar resolveBracket con kw
+  // KO matches 73-104 — usar equipos OFICIALES para comparar ganador
   var oStd2=allStd(sc),oThirds2=bestThirds(oStd2),oBr2=resolveBracket(oStd2,oThirds2,kw);
   [].concat(R32,OCT,QF,SF,TP,FIN).forEach(function(m){
     var _mn=String(m.n);var p=pSc[_mn]||pSc[m.n],o=sc[_mn]||sc[m.n];
-    // Obtener equipos: prioridad a R32_TEAMS para 16avos, luego bracket resuelto
     var oTeams=R32_TEAMS[m.n]||oBr2[m.n]||null;
-    if(!oTeams||!oTeams.h||!oTeams.a)return; // equipos aún no definidos
-    // Resultado oficial: primero kw (desempate admin), luego marcador
-    var offWin=kw[m.n]||kw[String(m.n)]||(function(){
+    // Ganador oficial
+    var offWin=kw[_mn]||kw[m.n]||(function(){
       if(!o||o.h===''||o.h==null||o.a===''||o.a==null)return null;
+      if(!oTeams)return null;
       var h=+o.h,a=+o.a;
-      if(h>a)return oTeams.h;
-      if(h<a)return oTeams.a;
-      return null; // empate en grupos va a kw
+      if(h>a)return oTeams.h;if(h<a)return oTeams.a;return null;
     })();
-    if(!offWin)return; // partido sin resultado oficial aún
-    // Ganador predicho por el participante
-    var predWin=pKw[m.n]||pKw[String(m.n)]||(function(){
+    if(!offWin)return;
+    // Ganador predicho (marcador del participante vs equipos oficiales)
+    var predWin=pKw[_mn]||pKw[m.n]||(function(){
       if(!p||p.h===''||p.h==null||p.a===''||p.a==null)return null;
+      if(!oTeams)return null;
       var h=+p.h,a=+p.a;
-      if(h>a)return oTeams.h;
-      if(h<a)return oTeams.a;
-      return null;
+      if(h>a)return oTeams.h;if(h<a)return oTeams.a;return null;
     })();
-    if(!predWin)return; // participante no predijo este partido
-    // Puntaje: marcador exacto + ganador = 5pts, solo ganador = 2pts
-    if(o&&o.h!==''&&o.h!=null&&o.a!==''&&o.a!=null&&
-       p&&p.h!==''&&p.h!=null&&p.a!==''&&p.a!=null){
+    // Marcador exacto + ganador = 5 pts
+    if(p&&o&&p.h!==''&&p.h!=null&&p.a!==''&&p.a!=null&&o.h!==''&&o.h!=null&&o.a!==''&&o.a!=null){
       var ph=+p.h,pa=+p.a,oh=+o.h,oa=+o.a;
       if(ph===oh&&pa===oa&&predWin===offWin){scPts+=cfg.result+cfg.exact;return;}
     }
-    if(predWin===offWin)scPts+=cfg.result;
+    // Solo ganador = 2 pts
+    if(predWin&&predWin===offWin)scPts+=cfg.result;
   });
   // Qualifier points from participant's auto-derived quals
   var predQuals=deriveParticipantQuals(pSc,pKw);
@@ -437,9 +428,9 @@ function calcPts(pred,sc,kw,cfg,oq){
 // ══ STORAGE (JSONBin) ══
 var API='https://api.jsonbin.io/v3';
 var _binId='6a4f159ada38895dfe43c37d',_key='$2a$10$uSNM9Lkmt4M.BApTcIgxdOuMnTIFXJInEL.17EFFIu5.Dc97Lsl9u';
-function getCreds(){return{binId:_binId,key:_key};}
-function setCreds(b,k){_binId=b;_key=k;}
-function clearCreds(){_binId=null;_key=null;}
+function getCreds(){if(_binId&&_key)return{binId:_binId,key:_key};_binId=localStorage.getItem('pm26_bid');_key=localStorage.getItem('pm26_key');return{binId:_binId,key:_key};}
+function setCreds(b,k){_binId=b;_key=k;localStorage.setItem('pm26_bid',b);localStorage.setItem('pm26_key',k);}
+function clearCreds(){_binId=null;_key=null;localStorage.removeItem('pm26_bid');localStorage.removeItem('pm26_key');}
 async function apiLoad(){
   var c=getCreds();if(!c.binId||!c.key)return null;
   try{var r=await fetch(API+'/b/'+c.binId+'/latest',{headers:{'X-Master-Key':c.key,'X-Bin-Meta':'false'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}
@@ -448,7 +439,25 @@ async function apiSave(data){
   var c=getCreds();if(!c.binId||!c.key)return false;
   try{var r=await fetch(API+'/b/'+c.binId,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':c.key},body:JSON.stringify(data)});return r.ok;}catch(e){return false;}
 }
-async function apiCreate(key,data){return true;} // Supabase: no necesario
+async function apiCreate(key,data){
+  try{var r=await fetch(API+'/b',{method:'POST',headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'PollaMundial2026'},body:JSON.stringify(data)});if(!r.ok)return null;var res=await r.json();return res.metadata&&res.metadata.id?res.metadata.id:null;}catch(e){return null;}
+}
+function emptyData(){return {config:JSON.parse(JSON.stringify(DEF_CFG)),users:[],predictions:{},official:{scores:{},kw:{}},recovery:[]};}
+function normalizeData(d){
+  if(!d)return emptyData();
+  d.config=Object.assign({},DEF_CFG,d.config||{});
+  if(d.config.bote===undefined)d.config.bote=0;
+  d.users=d.users||[];d.predictions=d.predictions||{};
+  d.official=d.official||{};d.official.scores=d.official.scores||{};d.official.kw=d.official.kw||{};
+  d.recovery=d.recovery||[];
+  function fixScoreKeys(s){if(!s)return{};var f={};Object.keys(s).forEach(function(k){f[String(k)]=s[k];});return f;}
+  d.official.scores=fixScoreKeys(d.official.scores);
+  d.official.kw=fixScoreKeys(d.official.kw);
+  Object.keys(d.predictions).forEach(function(uid){if(d.predictions[uid]){d.predictions[uid].scores=fixScoreKeys(d.predictions[uid].scores||{});d.predictions[uid].koWinners=fixScoreKeys(d.predictions[uid].koWinners||{});}});
+  return d;
+}
+var D=null,me=null,screen='auth',authSub='login',appTab='pronos',pSubTab='grupos',adminSub='resultados',adminKoSub='r32',saving=false,syncT=null;
+var livePred=null; // estado en vivo, actualiza sin guardar
 async function persist(fn){
   if(saving)return;saving=true;render();
   var fresh=await apiLoad();
@@ -472,7 +481,7 @@ function initLivePred(){
 function syncInputsToLive(){
   if(!livePred)return;
   document.querySelectorAll('.pred-sc[data-mid]').forEach(function(inp){
-    var id=String(inp.dataset.mid),s=inp.dataset.side;
+    var id=inp.dataset.mid,s=inp.dataset.side;
     if(!livePred.scores[id])livePred.scores[id]={h:'',a:''};
     livePred.scores[id][s]=inp.value!==''?+inp.value:'';
   });
@@ -660,7 +669,7 @@ function bindSetup(){
 function setSetupMsg(m,t){var el=document.getElementById('setupMsg');if(el){el.textContent=m;el.className='auth-msg '+(t||'ok');}}
 function doExportFile(bid,key){
   fetch(window.location.href).then(function(r){return r.text();}).then(function(html){
-    var out=html.replace("var _binId='6a18a2c4ddf5aa59f7717771',_key='$2a$10$F2T.UkGq03EhRAdjzGupJ.Z7lMfh2VRwGo3wBtLQr5JgHYzfDeaTK';","var _binId='"+bid+"',_key='"+key+"';").replace("screen='auth'","screen='auth'");
+    var out=html.replace("var _binId='6a4f159ada38895dfe43c37d',_key='$2a$10$uSNM9Lkmt4M.BApTcIgxdOuMnTIFXJInEL.17EFFIu5.Dc97Lsl9u';","var _binId='"+bid+"',_key='"+key+"';").replace("screen='auth'","screen='auth'");
     var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out],{type:'text/html'}));
     a.download='PollaMundial2026_Configurada.html';a.click();
     toast('Archivo configurado descargado ✓');
@@ -1330,16 +1339,15 @@ function saveResults(){
   var sc={};
   document.querySelectorAll('.off-sc[data-mid]').forEach(function(inp){
     var id=inp.dataset.mid,s=inp.dataset.side;
-    var numId=isNaN(+id)?id:String(id); // mantener string para consistencia
-    if(!sc[numId])sc[numId]={h:'',a:''};
-    if(inp.value!=='')sc[numId][s]=+inp.value;
+    if(!sc[id])sc[id]={h:'',a:''};
+    if(inp.value!=='')sc[id][s]=+inp.value;
   });
   var kw={};
   document.querySelectorAll('.off-kw[data-mn]').forEach(function(sel){
     if(sel.value)kw[+sel.dataset.mn]=sel.value;
   });
   persist(function(d){
-    Object.entries(sc).forEach(function(e){if(e[1].h!==''||e[1].a!=='')d.official.scores[String(e[0])]=e[1];});
+    Object.entries(sc).forEach(function(e){if(e[1].h!==''||e[1].a!=='')d.official.scores[e[0]]=e[1];});
     Object.entries(kw).forEach(function(e){d.official.kw[e[0]]=e[1];});
     return d;
   });
@@ -1389,7 +1397,11 @@ function dismissRec(uid){persist(function(d){d.recovery=(d.recovery||[]).filter(
 
 // ══ INIT ══
 (function init(){
-  // credenciales ya configuradas en el código
+  var c=getCreds();
+  if(!c.binId||!c.key){
+    if(typeof _binId!=='undefined'&&_binId&&typeof _key!=='undefined'&&_key){setCreds(_binId,_key);}
+    else{screen='auth';render();return;}
+  }
   screen='auth';
   apiLoad().then(function(data){
     if(!data){D=normalizeData({});screen='auth';render();return;}
