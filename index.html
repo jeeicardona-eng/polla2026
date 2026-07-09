@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Polla Mundial 2026</title>
 <style>
 
@@ -436,34 +435,19 @@ function calcPts(pred,sc,kw,cfg,oq){
 }
 
 // ══ STORAGE (JSONBin) ══
-var SUPA_URL='https://swwldztguzzhyywludxe.supabase.co';
-var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3d2xkenRndXp6aHl5d2x1ZHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NTY2MDAsImV4cCI6MjA5OTEzMjYwMH0.wmWzOJDK2WbTMBEMva8ILWoJi8QPRzSC2L8jMRINlz4';
-var SUPA_ROW='polla2026';
-var _supaClient=null;
-function getSupaClient(){
-  if(_supaClient)return _supaClient;
-  _supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY);
-  return _supaClient;
-}
-function getCreds(){return{binId:'configured',key:'configured'};}
-function setCreds(b,k){}
-function clearCreds(){}
+var API='https://api.jsonbin.io/v3';
+var _binId='6a4f159ada38895dfe43c37d',_key='$2a$10$uSNM9Lkmt4M.BApTcIgxdOuMnTIFXJInEL.17EFFIu5.Dc97Lsl9u';
+function getCreds(){return{binId:_binId,key:_key};}
+function setCreds(b,k){_binId=b;_key=k;}
+function clearCreds(){_binId=null;_key=null;}
 async function apiLoad(){
-  try{
-    var db=getSupaClient();
-    var r=await db.from('polla').select('data').eq('id',SUPA_ROW).single();
-    if(r.error)return null;
-    return r.data?r.data.data:null;
-  }catch(e){return null;}
+  var c=getCreds();if(!c.binId||!c.key)return null;
+  try{var r=await fetch(API+'/b/'+c.binId+'/latest',{headers:{'X-Master-Key':c.key,'X-Bin-Meta':'false'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}
 }
 async function apiSave(data){
-  try{
-    var db=getSupaClient();
-    var r=await db.from('polla').upsert({id:SUPA_ROW,data:data});
-    return !r.error;
-  }catch(e){return false;}
+  var c=getCreds();if(!c.binId||!c.key)return false;
+  try{var r=await fetch(API+'/b/'+c.binId,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':c.key},body:JSON.stringify(data)});return r.ok;}catch(e){return false;}
 }
-
 async function apiCreate(key,data){return true;} // Supabase: no necesario
 async function persist(fn){
   if(saving)return;saving=true;render();
@@ -1405,11 +1389,7 @@ function dismissRec(uid){persist(function(d){d.recovery=(d.recovery||[]).filter(
 
 // ══ INIT ══
 (function init(){
-  var c=getCreds();
-  if(!c.binId||!c.key){
-    if(typeof _binId!=='undefined'&&_binId&&typeof _key!=='undefined'&&_key){setCreds(_binId,_key);}
-    else{screen='auth';render();return;}
-  }
+  // credenciales ya configuradas en el código
   screen='auth';
   apiLoad().then(function(data){
     if(!data){render();toast('Error de conexión','err');return;}
